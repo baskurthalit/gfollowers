@@ -58,13 +58,22 @@ class FollowerListVC: UIViewController {
     
     func ft_GetFollowers(username: String, page: Int){
         
+        ft_ShowLoadingView()
         NetworkManager.shared.ft_GetFollowers(for: username, page: page) { [weak self] result in
             guard let self = self else { return }
+            self.ft_DismissLoadingView()
             
+//            #warning("Dismiss will called")
             switch result{
             case .success(let followers):
                 if followers.count < 100 { self.hasGotMoreFollowers = false }
                 self.followers.append(contentsOf: followers)
+                
+                if self.followers.isEmpty {
+                    let messeage = "This user doesn't have any followers. Go follow them "
+                    DispatchQueue.main.async { self.ft_ShowEmptyStateView(with: messeage, in: self.view) }
+                    return
+                }
                 
                 self.ft_UpdateData()
             case .failure(let error):
