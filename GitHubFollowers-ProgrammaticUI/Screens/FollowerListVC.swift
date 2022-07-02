@@ -7,9 +7,7 @@
 
 import UIKit
 
-class FollowerListVC: UIViewController {
-    
-    
+class FollowerListVC: UIViewController, UISearchControllerDelegate {
     
     enum Section {
         //Enum is hasable default
@@ -18,9 +16,11 @@ class FollowerListVC: UIViewController {
     
     var username: String!
     var followers: [Follower] = []
+    var filterFollowers: [Follower] = []
     var page: Int = 1
     
     var hasGotMoreFollowers = true
+    var isSearching = false
     
     var collectionView: UICollectionView!
     
@@ -30,6 +30,7 @@ class FollowerListVC: UIViewController {
         super.viewDidLoad()
         
         ft_ConfigureViewController()
+        ft_ConfigureSearchController()
         ft_ConfigureCollectionView()
         ft_GetFollowers(username: username, page: page)
         ft_ConfigureDataSource()
@@ -54,6 +55,19 @@ class FollowerListVC: UIViewController {
         collectionView.register(FollowerCell.self, forCellWithReuseIdentifier: FollowerCell.reuseID)
     }
     
+    func ft_ConfigureSearchController(){
+        
+        let searchController                                  = UISearchController()
+        searchController.searchResultsUpdater                 = self
+        searchController.delegate                             = self
+        searchController.obscuresBackgroundDuringPresentation = false
+        searchController.searchBar.placeholder                = "Search for a username..."
+        
+        
+        navigationItem.searchController                       = searchController
+        
+    }
+    
  
     
     func ft_GetFollowers(username: String, page: Int){
@@ -70,12 +84,16 @@ class FollowerListVC: UIViewController {
                 self.followers.append(contentsOf: followers)
                 
                 if self.followers.isEmpty {
+                    
                     let messeage = "This user doesn't have any followers. Go follow them "
-                    DispatchQueue.main.async { self.ft_ShowEmptyStateView(with: messeage, in: self.view) }
+                    DispatchQueue.main.async {
+                        self.ft_ShowEmptyStateView(with: messeage, in: self.view)
+                        
+                    }
                     return
                 }
                 
-                self.ft_UpdateData()
+                self.ft_UpdateData(on: self.followers)
             case .failure(let error):
                 self.ft_PresentGFAlertOnMainThread(title: "Test", message: error.rawValue, buttonTitle: "OK")
             }
@@ -93,7 +111,7 @@ class FollowerListVC: UIViewController {
         
     }
     
-    func ft_UpdateData(){
+    func ft_UpdateData(on followers:[Follower]){
         var snapshot = NSDiffableDataSourceSnapshot<Section, Follower>()
         snapshot.appendSections([.main])
         snapshot.appendItems(followers)
@@ -120,5 +138,37 @@ extension FollowerListVC: UICollectionViewDelegate {
             
         }
     }
+    
+}
+
+extension FollowerListVC: UISearchResultsUpdating, UISearchBarDelegate {
+    func updateSearchResults(for searchController: UISearchController) {
+        guard let filter = searchController.searchBar.text, !filter.isEmpty else {return}
+        isSearching = true
+        filterFollowers = followers.filter { $0.login.lowercased().contains(filter.lowercased())}
+        ft_UpdateData(on: filterFollowers)
+        
+
+    }
+    
+    func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
+        //passing to the info screen
+        let activeArray = isSearching ? filterFollowers : followers
+        
+        let follower = activeArray[indexPath.item]
+        
+        let destinationVC = UserInfoVC()
+        let navigationCon = UINavigationController(rootViewController: destinationVC)
+        
+        
+        present(navigationCon, animated: true, completion: nil)
+        
+    }
+    
+    func searchBarCancelButtonClicked(_ searchBar: UISearchBar) {
+        isSearching = false
+        ft_UpdateData(on: followers)
+    }
+    
     
 }
